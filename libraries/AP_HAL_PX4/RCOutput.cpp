@@ -66,7 +66,7 @@ void PX4RCOutput::init()
 
     // ensure not to write zeros to disabled channels
     for (uint8_t i=0; i < PX4_NUM_OUTPUT_CHANNELS; i++) {
-        _period[i] = PWM_IGNORE_THIS_CHANNEL;
+        _width[i] = PWM_IGNORE_THIS_CHANNEL;
     }
 
     // publish actuator vaules on demand
@@ -224,8 +224,8 @@ void PX4RCOutput::enable_ch(uint8_t ch)
         _init_alt_channels();
     }
     _enabled_channels |= (1U<<ch);
-    if (_period[ch] == PWM_IGNORE_THIS_CHANNEL) {
-        _period[ch] = 0;
+    if (_width[ch] == PWM_IGNORE_THIS_CHANNEL) {
+        _width[ch] = 0;
     }
 }
 
@@ -236,7 +236,7 @@ void PX4RCOutput::disable_ch(uint8_t ch)
     }
 
     _enabled_channels &= ~(1U<<ch);
-    _period[ch] = PWM_IGNORE_THIS_CHANNEL;
+    _width[ch] = PWM_IGNORE_THIS_CHANNEL;
 }
 
 void PX4RCOutput::set_safety_pwm(uint32_t chmask, uint16_t period_us)
@@ -313,7 +313,7 @@ void PX4RCOutput::force_safety_no_wait(void)
     }
 }
 
-void PX4RCOutput::write(uint8_t ch, uint16_t period_us)
+void PX4RCOutput::write(uint8_t ch, uint16_t width_us)
 {
     if (ch >= PX4_NUM_OUTPUT_CHANNELS) {
         return;
@@ -331,13 +331,13 @@ void PX4RCOutput::write(uint8_t ch, uint16_t period_us)
         // this ends up being 0 to 500 pulse width in units of
         // 125usec.
         const uint32_t period_max = 1000000UL/(16000/8);
-        if (period_us <= _esc_pwm_min) {
-            period_us = 0;
-        } else if (period_us >= _esc_pwm_max) {
-            period_us = period_max;
+        if (width_us <= _esc_pwm_min) {
+            width_us = 0;
+        } else if (width_us >= _esc_pwm_max) {
+            width_us = period_max;
         } else {
-            uint32_t pdiff = period_us - _esc_pwm_min;
-            period_us = pdiff*period_max/(_esc_pwm_max - _esc_pwm_min);
+            uint32_t pdiff = width_us - _esc_pwm_min;
+            width_us = pdiff*period_max/(_esc_pwm_max - _esc_pwm_min);
         }
     }
     
@@ -346,9 +346,9 @@ void PX4RCOutput::write(uint8_t ch, uint16_t period_us)
       are in oneshot mode. In oneshot mode we always need to send the
       output
      */
-    if (period_us != _period[ch] ||
+    if (width_us != _width[ch] ||
         _output_mode == MODE_PWM_ONESHOT) {
-        _period[ch] = period_us;
+        _width[ch] = width_us;
         _need_update = true;
     }
 }
@@ -368,7 +368,7 @@ uint16_t PX4RCOutput::read(uint8_t ch)
             return _outputs[i].outputs.output[ch];
         }
     }
-    return _period[ch];
+    return _width[ch];
 }
 
 void PX4RCOutput::read(uint16_t* period_us, uint8_t len)
@@ -384,7 +384,7 @@ uint16_t PX4RCOutput::read_last_sent(uint8_t ch)
         return 0;
     }
 
-    return _period[ch];
+    return _width[ch];
 }
 
 void PX4RCOutput::read_last_sent(uint16_t* period_us, uint8_t len)
@@ -450,7 +450,7 @@ void PX4RCOutput::_publish_actuators(void)
         if (!armed) {
             actuators.values[i] = 0;
         } else {
-            actuators.values[i] = (_period[i] - _esc_pwm_min) / (float)(_esc_pwm_max - _esc_pwm_min);
+            actuators.values[i] = (_width[i] - _esc_pwm_min) / (float)(_esc_pwm_max - _esc_pwm_min);
         }
         // actuator values are from -1 to 1
         actuators.values[i] = actuators.values[i]*2 - 1;
@@ -504,7 +504,7 @@ void PX4RCOutput::_send_outputs(void)
         }
         if (to_send > 0) {
             for (int i=to_send-1; i >= 0; i--) {
-                if (_period[i] == PWM_IGNORE_THIS_CHANNEL) {
+                if (_width[i] == PWM_IGNORE_THIS_CHANNEL) {
                     to_send = i;
                 } else {
                     break;
@@ -512,7 +512,7 @@ void PX4RCOutput::_send_outputs(void)
             }
         }
         if (to_send > 0) {
-            ::write(_pwm_fd, _period, to_send*sizeof(_period[0]));
+            ::write(_pwm_fd, _width, to_send*sizeof(_width[0]));
         }
         if (_max_channel > _servo_count) {
             // maybe send updates to alt_fd
@@ -522,7 +522,7 @@ void PX4RCOutput::_send_outputs(void)
                     n = _alt_servo_count;
                 }
                 if (n > 0) {
-                    ::write(_alt_fd, &_period[_servo_count], n*sizeof(_period[0]));
+                    ::write(_alt_fd, &_width[_servo_count], n*sizeof(_width[0]));
                 }
             }
         }
