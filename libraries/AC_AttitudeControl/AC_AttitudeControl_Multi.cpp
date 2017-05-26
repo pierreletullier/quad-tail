@@ -259,14 +259,14 @@ void AC_AttitudeControl_Multi::rate_controller_run()
 
 
     float xsp = rate_target_to_motor_roll(gyro_latest.x, _rate_target_ang_vel.x);
-    float ysp = rate_target_to_motor_roll(gyro_latest.y, _rate_target_ang_vel.y);
-    float zsp = rate_target_to_motor_roll(gyro_latest.z, _rate_target_ang_vel.z);
+    float ysp = rate_target_to_motor_pitch(gyro_latest.y, _rate_target_ang_vel.y);
+    float zsp = rate_target_to_motor_yaw(gyro_latest.z, _rate_target_ang_vel.z);
 
     _motors.set_roll(xsp);
     _motors.set_pitch(ysp);
-    _motors.set_yaw(xsp);
+    _motors.set_yaw(zsp);
 
-    DataFlash_Class::instance()->Log_Write("RateCtl", "TimeUS, GyrX, GyrY, GyrZ, spX, spY, spZ", "Qffffff",
+    DataFlash_Class::instance()->Log_Write("GRSP", "TimeUS, GyrX, GyrY, GyrZ, spX, spY, spZ", "Qffffff",
             AP_HAL::micros64(),
             gyro_latest.x, gyro_latest.y, gyro_latest.z,
             xsp, ysp, zsp);
