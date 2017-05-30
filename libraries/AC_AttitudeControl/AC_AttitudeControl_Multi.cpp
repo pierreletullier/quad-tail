@@ -257,19 +257,13 @@ void AC_AttitudeControl_Multi::rate_controller_run()
 
     Vector3f gyro_latest = _ahrs.get_gyro_latest();
 
+    _motors.set_roll(rate_target_to_motor_roll(gyro_latest.x, _rate_target_ang_vel.x));
+    _motors.set_pitch(rate_target_to_motor_pitch(gyro_latest.y, _rate_target_ang_vel.y));
+    _motors.set_yaw(rate_target_to_motor_yaw(gyro_latest.z, _rate_target_ang_vel.z));
 
-    float xsp = rate_target_to_motor_roll(gyro_latest.x, _rate_target_ang_vel.x);
-    float ysp = rate_target_to_motor_pitch(gyro_latest.y, _rate_target_ang_vel.y);
-    float zsp = rate_target_to_motor_yaw(gyro_latest.z, _rate_target_ang_vel.z);
-
-    _motors.set_roll(xsp);
-    _motors.set_pitch(ysp);
-    _motors.set_yaw(zsp);
-
-    DataFlash_Class::instance()->Log_Write("GRSP", "TimeUS, GyrX, GyrY, GyrZ, spX, spY, spZ", "Qffffff",
-            AP_HAL::micros64(),
-            gyro_latest.x, gyro_latest.y, gyro_latest.z,
-            xsp, ysp, zsp);
+    Vector3f rpy;
+    _ahrs.get_rotation_body_to_ned().to_euler(&rpy.x, &rpy.y, &rpy.z);
+    DataFlash_Class::instance()->Log_Write_SysID(gyro_latest, _rate_target_ang_vel, rpy, _attitude_target_euler_angle);
 
     control_monitor_update();
 }
