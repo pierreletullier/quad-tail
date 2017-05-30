@@ -2211,6 +2211,28 @@ void DataFlash_Class::Log_Write_VisualOdom(float time_delta, const Vector3f &ang
     WriteBlock(&pkt_visualodom, sizeof(log_VisualOdom));
 }
 
+void DataFlash_Class::Log_Write_SysID(Vector3f gyro, Vector3f rate_target,
+        const Vector3f att, const Vector3f att_target)
+{
+    struct log_SysID pkt_sysid = {
+       LOG_PACKET_HEADER_INIT(LOG_SYSID_MSG),
+       time_us         : AP_HAL::micros64(),
+       gyro_x : gyro.x,
+       gyro_y : gyro.y,
+       gyro_z : gyro.z,
+       rate_target_x : rate_target.x,
+       rate_target_y : rate_target.y,
+       rate_target_z : rate_target.z,
+       att_x : att.x,
+       att_y : att.y,
+       att_z : att.z,
+       att_target_x : att_target.x,
+       att_target_y : att_target.y,
+       att_target_z : att_target.z
+    };
+    WriteBlock(&pkt_sysid, sizeof(log_SysID));
+}
+
 // Write AOA and SSA
 void DataFlash_Class::Log_Write_AOA_SSA(AP_AHRS &ahrs)
 {

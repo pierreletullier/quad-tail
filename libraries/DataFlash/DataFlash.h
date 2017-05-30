@@ -154,6 +154,7 @@ public:
     void Log_Write_VisualOdom(float time_delta, const Vector3f &angle_delta, const Vector3f &position_delta, float confidence);
     void Log_Write_AOA_SSA(AP_AHRS &ahrs);
     void Log_Write_Beacon(AP_Beacon &beacon);
+    void Log_Write_SysID(Vector3<float> gyro, Vector3<float> _rate_target, const Vector3f att, const Vector3f att_target);
 
     void Log_Write(const char *name, const char *labels, const char *fmt, ...);
 

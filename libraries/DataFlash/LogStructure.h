@@ -433,6 +433,24 @@ struct PACKED log_VisualOdom {
     float confidence;
 };
 
+// Write system identification data
+struct PACKED log_SysID {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float gyro_x;
+    float gyro_y;
+    float gyro_z;
+    float rate_target_x;
+    float rate_target_y;
+    float rate_target_z;
+    float att_x;
+    float att_y;
+    float att_z;
+    float att_target_x;
+    float att_target_y;
+    float att_target_z;
+};
+
 struct PACKED log_ekfBodyOdomDebug {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -1080,7 +1098,9 @@ Format characters in the format string for binary log messages
     { LOG_RALLY_MSG, sizeof(log_Rally), \
       "RALY", "QBBLLh", "TimeUS,Tot,Seq,Lat,Lng,Alt" }, \
     { LOG_VISUALODOM_MSG, sizeof(log_VisualOdom), \
-      "VISO", "Qffffffff", "TimeUS,dt,AngDX,AngDY,AngDZ,PosDX,PosDY,PosDZ,conf" }
+      "VISO", "Qffffffff", "TimeUS,dt,AngDX,AngDY,AngDZ,PosDX,PosDY,PosDZ,conf" }, \
+    { LOG_SYSID_MSG, sizeof(log_SysID), \
+      "SID", "Qffffffffffff", "TimeUS,GX,GY,GZ,RX,RY,RZ,R,P,Y,AX,AY,AZ" }
 
 // #if SBP_HW_LOGGING
 #define LOG_SBP_STRUCTURES \
@@ -1213,6 +1233,7 @@ enum LogMessages {
     LOG_VISUALODOM_MSG,
     LOG_AOA_SSA_MSG,
     LOG_BEACON_MSG,
+    LOG_SYSID_MSG,
 };
 
 enum LogOriginType {
