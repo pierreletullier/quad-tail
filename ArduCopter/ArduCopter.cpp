@@ -198,6 +198,10 @@ void Copter::barometer_accumulate(void)
 
 void Copter::perf_update(void)
 {
+    DataFlash_Class::instance()->Log_Write("LOAD", "TimeUS,Load", "Qf",
+            AP_HAL::micros64(),
+            scheduler.load_average(MAIN_LOOP_MICROS));
+
     if (should_log(MASK_LOG_PM))
         Log_Write_Performance();
     if (scheduler.debug()) {
