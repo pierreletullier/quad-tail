@@ -116,13 +116,13 @@ void AP_MotorsTailsitter::output_armed_stabilizing()
 
     elevon_thrust = MAX(fabsf(pitch_thrust), fabsf(yaw_thrust));
 
-    // boost throttle to reduce elevon thrust demand
-    throttle_thrust *= (1.0f + elevon_thrust);
-
-    // override boost at low throttle demand (for safety)
-    if (get_throttle() < (0.5f * _throttle_hover)) {
-        throttle_thrust *= (get_throttle() / (0.5f * _throttle_hover));
-    }
+//    // boost throttle to reduce elevon thrust demand
+//    throttle_thrust *= (1.0f + elevon_thrust);
+//
+//    // override boost at low throttle demand (for safety)
+//    if (get_throttle() < (0.5f * _throttle_hover)) {
+//        throttle_thrust *= (get_throttle() / (0.5f * _throttle_hover));
+//    }
 
     // sanity check throttle is above zero and below current limited throttle
     if (throttle_thrust <= 0.0f) {
