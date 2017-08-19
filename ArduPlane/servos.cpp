@@ -768,9 +768,6 @@ void Plane::servos_output(void)
     
     hal.rcout->push();
 
-    // send SBUS1 servo outputs
-    hal.rcout->sbus1_out();
-
     if (g2.servo_channels.auto_trim_enabled()) {
         servos_auto_trim();
     }
