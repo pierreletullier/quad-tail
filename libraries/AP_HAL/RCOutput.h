@@ -117,12 +117,12 @@ public:
     /*
       enable PX4IO SBUS out at the given rate
      */
-    virtual bool     enable_sbus_out(uint16_t rate_hz) { return false; }
+    virtual bool enable_px4io_sbus_out(uint16_t rate_hz) { return false; }
 
     /*
       enable FMU SBUS out at the given rate
      */
-    virtual void enable_fmu_sbus_out(UARTDriver* uart, uint16_t rate);
+    virtual void enable_sbus_out(UARTDriver* uart, uint16_t rate);
 
     // uart port for SBUS1 output
     UARTDriver* sbus1_uart = nullptr;

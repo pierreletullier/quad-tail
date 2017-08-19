@@ -114,7 +114,7 @@ AP_HAL::RCOutput::sbus1_out()
     }
 }
 
-void AP_HAL::RCOutput::enable_fmu_sbus_out(UARTDriver* uart, uint16_t rate) {
+void AP_HAL::RCOutput::enable_sbus_out(UARTDriver* uart, uint16_t rate) {
     sbus1_uart = uart;
     sbus1_uart->begin(100000);
     sbus1_uart->enable_parity(true);
