@@ -334,7 +334,7 @@ size_t PX4UARTDriver::write(const uint8_t *buffer, size_t size)
 		return 0;
 	}
 
-    if (!_nonblocking_writes || _unbuffered_writes) {
+    if (!_nonblocking_writes) {
         /*
           use the per-byte delay loop in write() above for blocking and unbuffered writes
          */
@@ -346,7 +346,12 @@ size_t PX4UARTDriver::write(const uint8_t *buffer, size_t size)
         return ret;
     }
 
-    return _writebuf.write(buffer, size);
+    if (_unbuffered_writes) {
+        // write buffer straight to the file descriptor
+        return _write_fd(buffer, size);
+    } else {
+        return _writebuf.write(buffer, size);
+    }
 }
 
 /*
