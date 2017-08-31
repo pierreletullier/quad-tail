@@ -402,6 +402,8 @@ public:
     static bool upgrade_parameters(const uint8_t old_keys[14], uint16_t aux_channel_mask, RCMapper *rcmap);
     static void upgrade_motors_servo(uint8_t ap_motors_key, uint8_t ap_motors_idx, uint8_t new_channel);
 
+    AP_Int16 sbus_rate;
+
 private:
     struct {
         bool k_throttle_reversible:1;
