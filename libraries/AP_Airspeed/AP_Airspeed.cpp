@@ -260,7 +260,7 @@ void AP_Airspeed::read(void)
     _filtered_pressure      = 0.7f * _filtered_pressure  +  0.3f * airspeed_pressure;
 
     /*
-      we support different pitot tube setups so used can choose if
+      we support different pitot tube setups so user can choose if
       they want to be able to detect pressure on the static port
      */
     switch ((enum pitot_tube_order)_tube_order.get()) {
