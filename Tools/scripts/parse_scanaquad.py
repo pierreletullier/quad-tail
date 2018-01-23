@@ -106,10 +106,11 @@ sys.stdout.write("max_frame_interval: %.6f, at: %.6f\n" % (max_frame_interval, m
 xa = np.array(x)
 ya = np.array(y)
 plt.figure(1)
-plt.ion()
+#plt.ion()
 plt.plot(xa, ya)
 plt.grid()
 plt.legend(['1','2','3'])
+prefix = filename.split('.')[0]
+plt.savefig(prefix + '.png')
 
 plt.show()
-
