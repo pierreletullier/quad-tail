@@ -19,6 +19,7 @@
 
 #include "AP_HAL_ChibiOS.h"
 #include "Scheduler.h"
+#include "Util.h"
 
 #include <AP_HAL_ChibiOS/UARTDriver.h>
 #include <AP_HAL_ChibiOS/AnalogIn.h>
@@ -34,6 +35,7 @@ using namespace ChibiOS;
 extern const AP_HAL::HAL& hal;
 THD_WORKING_AREA(_timer_thread_wa, 2048);
 THD_WORKING_AREA(_rcin_thread_wa, 512);
+THD_WORKING_AREA(_toneAlarm_thread_wa, 2048);
 THD_WORKING_AREA(_io_thread_wa, 2048);
 THD_WORKING_AREA(_storage_thread_wa, 2048);
 THD_WORKING_AREA(_uart_thread_wa, 2048);
@@ -66,6 +68,13 @@ void Scheduler::init()
                      sizeof(_uart_thread_wa),
                      APM_UART_PRIORITY,        /* Initial priority.    */
                      _uart_thread,             /* Thread function.     */
+                     this);                    /* Thread parameter.    */
+
+    // the toneAlarm thread runs at a medium priority
+    _toneAlarm_thread_ctx = chThdCreateStatic(_toneAlarm_thread_wa,
+                     sizeof(_toneAlarm_thread_wa),
+                     APM_TONEALARM_PRIORITY,        /* Initial priority.    */
+                     _toneAlarm_thread,             /* Thread function.     */
                      this);                    /* Thread parameter.    */
 
     // the IO thread runs at lower priority
@@ -275,6 +284,21 @@ void Scheduler::_rcin_thread(void *arg)
     while (true) {
         sched->delay_microseconds(2500);
         ((RCInput *)hal.rcin)->_timer_tick();
+    }
+}
+
+void Scheduler::_toneAlarm_thread(void *arg)
+{
+    Scheduler *sched = (Scheduler *)arg;
+    sched->_toneAlarm_thread_ctx->name = "toneAlarm";
+    while (!sched->_hal_initialized) {
+        sched->delay_microseconds(10000);
+    }
+    while (true) {
+        sched->delay_microseconds(10000);
+
+        // process tone command
+        Util::from(hal.util)->_toneAlarm_timer_tick();
     }
 }
 
