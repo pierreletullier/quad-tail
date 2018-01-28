@@ -26,6 +26,7 @@
 #define APM_MAIN_PRIORITY       180
 #define APM_TIMER_PRIORITY      178
 #define APM_RCIN_PRIORITY       177
+#define APM_TONEALARM_PRIORITY  176
 #define APM_UART_PRIORITY        60
 #define APM_STORAGE_PRIORITY     59
 #define APM_IO_PRIORITY          58
@@ -108,12 +109,14 @@ private:
     thread_t* _io_thread_ctx;
     thread_t* _storage_thread_ctx;
     thread_t* _uart_thread_ctx;
+    thread_t* _toneAlarm_thread_ctx;
 
     static void _timer_thread(void *arg);
     static void _rcin_thread(void *arg);
     static void _io_thread(void *arg);
     static void _storage_thread(void *arg);
     static void _uart_thread(void *arg);
+    static void _toneAlarm_thread(void *arg);
     void _run_timers(bool called_from_timer_thread);
     void _run_io(void);
 };
