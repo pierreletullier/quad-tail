@@ -63,7 +63,7 @@ bool ToneAlarm::is_tune_comp()
 
 void ToneAlarm::stop()
 {
-    pwmDisableChannel(pwm_group.pwm_drv, ALARM_CHANNEL);
+    pwmDisableChannel(pwm_group.pwm_drv, pwm_group.chan);
 
 }
 
@@ -80,7 +80,7 @@ bool ToneAlarm::play()
         pwmChangePeriod(pwm_group.pwm_drv,
                         pwm_group.pwm_cfg.frequency/cur_note);
 
-        pwmEnableChannel(pwm_group.pwm_drv, ALARM_CHANNEL,
+        pwmEnableChannel(pwm_group.pwm_drv, pwm_group.chan,
                          (pwm_group.pwm_cfg.frequency/2)/cur_note);
 
         cur_note =0;

@@ -141,6 +141,7 @@ protected:
 
 private:
     struct pwmGroup {
+        pwmchannel_t chan;
         PWMConfig pwm_cfg;
         PWMDriver* pwm_drv;
     };
