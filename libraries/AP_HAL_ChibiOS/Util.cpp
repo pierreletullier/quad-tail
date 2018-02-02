@@ -151,7 +151,6 @@ bool Util::toneAlarm_init()
 void Util::toneAlarm_set_tune(uint8_t tone)
 {
     _toneAlarm.set_tune(tone);
-    hal.console->printf("set_tune: %d\n", tone);
 }
 
 void Util::_toneAlarm_timer_tick() {

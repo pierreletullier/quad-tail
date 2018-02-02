@@ -36,7 +36,7 @@ bool ToneAlarm::tune_repeat[TONE_NUMBER_OF_TUNES] = {false,true,false,false,fals
 
 ToneAlarm::ToneAlarm()
 {
-    tune_num = -1;                    //initialy no tune to play
+    tune_num = -1;                    //initially no tune to play
     tune_pos = 0;
 }
 
@@ -61,6 +61,13 @@ bool ToneAlarm::is_tune_comp()
     return tune_comp;
 }
 
+void ToneAlarm::set_tune_comp(bool v)
+{
+    tune_num = -1;
+    tune_pos = 0;
+    tune_comp = v;
+}
+
 void ToneAlarm::stop()
 {
     pwmDisableChannel(pwm_group.pwm_drv, pwm_group.chan);
@@ -75,7 +82,6 @@ bool ToneAlarm::play()
         return true;
     }
     if(cur_note != 0){
-        hal.console->printf("cur_note: %d, duration: %d\n", cur_note, duration);
         // specify buzzer timer and channel with defines in hwdef.dat
         pwmChangePeriod(pwm_group.pwm_drv,
                         pwm_group.pwm_cfg.frequency/cur_note);
