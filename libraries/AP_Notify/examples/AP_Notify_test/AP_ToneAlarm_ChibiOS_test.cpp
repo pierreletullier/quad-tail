@@ -7,6 +7,7 @@
 #include <AP_HAL_ChibiOS/Util.h>
 #include <AP_HAL_ChibiOS/ToneAlarm.h>
 #include <AP_Notify/AP_Notify.h>          // Notify library
+#include <AP_Notify/AP_BoardLED.h>        // Board LED library
 #include <AP_Notify/ToneAlarm_ChibiOS.h>
 
 void setup();
@@ -14,11 +15,22 @@ void loop();
 
 const AP_HAL::HAL& hal = AP_HAL::get_HAL();
 
+// create board led object
+AP_BoardLED board_led;
+
+static NotifyDevice* _device;
+
+
 void setup()
 {
-    hal.console->printf("AP_Notify ToneAlarm_ChibiOS test\n");
+    hal.console->printf("AP_Notify library test\n");
 
+    _device = new ToneAlarm_ChibiOS();
+    _device->init();
     ChibiOS::Util::from(hal.util)->toneAlarm_init();
+
+    // initialise the board leds
+    board_led.init();
 
     // turn on initialising notification
     AP_Notify::flags.initialising = true;
@@ -27,32 +39,24 @@ void setup()
     AP_Notify::flags.pre_arm_check = 1;
 }
 
-// ChibiOS::Util has a static instance of ChibiOS::ToneAlarm
-// the ChibiOS _toneAlarm_thread calls Util::_toneAlarm_timer_tick() at 50Hz (100?)
-// which implements a state machine that calls
-// (state 0) if init_tune() -> (state 1) complete=false
-// (state 1) if set_note -> (state 2) -> if play -> (state 3)
-//   play returns true if tune has changed or tune is complete (repeating tunes never complete)
-// (state 3) -> (state 1)
-// (on every tick) if (complete) -> (state 0)
-
 void loop()
 {
     static int tune = 0;
     static uint32_t then = AP_HAL::millis();
-
     hal.scheduler->delay(20);
+    // low level state machine clock
+    ChibiOS::Util::from(hal.util)->_toneAlarm_timer_tick();
+
     uint32_t now = AP_HAL::millis();
-    if ((now - then) > 4000) {
+    if ((now - then) > 2000) {
         then = now;
-        if (tune >= TONE_NUMBER_OF_TUNES) {
+        tune++;
+//        if (tune==1 || tune==6 || tune==7) tune++;
+        if (tune >= 11) {
             tune = 0;
         }
-        // last tune might be repeating... must set tune complete flag in ToneAlarm
-        ChibiOS::Util::from(hal.util)->get_ToneAlarm().set_tune_comp(true);
-        ::printf("tune: %u\n", tune);
+//        hal.console->printf("playing tune %u\n", tune);
         ChibiOS::Util::from(hal.util)->toneAlarm_set_tune(tune);
-        tune++;
     }
 }
 
