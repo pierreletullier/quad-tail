@@ -87,7 +87,7 @@ AP_HAL::Device::PeriodicHandle DeviceBus::register_periodic_callback(uint32_t pe
 
         hal_device = _hal_device;
         // setup a name for the thread
-        char name[] = "XXX:X";
+        char *name = malloc(7);
         switch (hal_device->bus_type()) {
         case AP_HAL::Device::BUS_TYPE_I2C:
             snprintf(name, sizeof(name), "I2C:%u",
