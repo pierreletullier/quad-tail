@@ -107,12 +107,12 @@ void Scheduler::get_stats(void) {
         }
         total_time += tp->stats.cumulative;
 
-//        hal.console->printf("%12ls %4lu %12ls",
-//                            tp->name,
-//                            (uint32_t)tp->prio,
-//                            CH_STATE_NAMES[tp->state]);
+        hal.console->printf("%12ls %4lu %12ls",
+                            tp->name,
+                            (uint32_t)tp->prio,
+                            CH_STATE_NAMES[tp->state]);
 
-//        hal.console->printf(" %llu\n", tp->stats.cumulative);
+        hal.console->printf(" %llu\n", tp->stats.cumulative);
 
         tp->stats.cumulative = 0;
 
