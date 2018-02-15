@@ -36,6 +36,9 @@ using namespace ChibiOS;
 
 extern const AP_HAL::HAL& hal;
 
+#if TEST_IDLE
+THD_WORKING_AREA(_test_thread_wa, 256);
+#endif
 THD_WORKING_AREA(_timer_thread_wa, 2048);
 THD_WORKING_AREA(_rcin_thread_wa, 512);
 #ifdef HAL_PWM_ALARM
@@ -52,6 +55,14 @@ Scheduler::Scheduler()
 
 void Scheduler::init()
 {
+#if TEST_IDLE
+    // setup the test thread - this will just burn cpu
+    _test_thread_ctx = chThdCreateStatic(_test_thread_wa,
+                     sizeof(_test_thread_wa),
+                     APM_TEST_PRIORITY,         /* Initial priority.    */
+                     _test_thread,             /* Thread function.     */
+                     this);                     /* Thread parameter.    */
+#endif
     // setup the timer thread - this will call tasks at 1kHz
     _timer_thread_ctx = chThdCreateStatic(_timer_thread_wa,
                      sizeof(_timer_thread_wa),
@@ -120,7 +131,8 @@ void Scheduler::get_stats(void) {
     } while (tp != NULL);
 
     _busy_percent = 100 * (1.0f - (float)idle_time / total_time);
-//    hal.console->printf("busy percent: %d, n_irq: %lu\n", busy_percent, ch.kernel_stats.n_irq);
+    hal.console->printf("busy percent: %.2f, total_ticks: %lu\n",
+                        100 * (1.0f - (float)idle_time / total_time), total_time);
 }
 
 
@@ -322,7 +334,6 @@ void Scheduler::_timer_thread(void *arg)
     while (!sched->_hal_initialized) {
         sched->delay_microseconds(1000);
     }
-//    static systime_t last_print_stats = 0;
     while (true) {
         sched->delay_microseconds(1000);
 
@@ -333,6 +344,26 @@ void Scheduler::_timer_thread(void *arg)
         hal.rcout->timer_tick();
     }
 }
+
+#if TEST_IDLE
+void Scheduler::_test_thread(void *arg)
+{
+    Scheduler *sched = (Scheduler *)arg;
+    sched->_test_thread_ctx->name = "test_thread";
+
+    while (!sched->_hal_initialized) {
+        sched->delay_microseconds(1000);
+    }
+    uint64_t Fnm1 = 0;
+    uint64_t Fn = 1;
+    while (true) {
+        uint64_t tmp = Fn;
+        Fn = Fn + Fnm1;
+        Fnm1 = tmp;
+    }
+}
+#endif
+
 #if HAL_WITH_UAVCAN
 void Scheduler::_uavcan_thread(void *arg)
 {
