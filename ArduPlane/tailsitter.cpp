@@ -75,13 +75,22 @@ void QuadPlane::tailsitter_output(void)
             SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, throttle);
             SRV_Channels::set_output_scaled(SRV_Channel::k_throttleLeft, throttle);
             SRV_Channels::set_output_scaled(SRV_Channel::k_throttleRight, throttle);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_throttleTop, throttle);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_throttleBot, throttle);
             SRV_Channels::set_output_scaled(SRV_Channel::k_rudder, 0);
             pos_control->get_accel_z_pid().set_integrator(throttle*10);
-        }
+      }
         return;
     }
     
+    // run the multicopter motor output logic
     motors_output();
+
+    if (!in_vtol_mode()) {
+        // stop the top and bottom motors when in fixed-wing mode
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttleTop, 0);
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttleBot, 0);
+    }
     plane.pitchController.reset_I();
     plane.rollController.reset_I();
 
@@ -212,9 +221,13 @@ void QuadPlane::tailsitter_speed_scaling(void)
     const float scaling_max = 5;
     float scaling = 1;
     if (is_zero(throttle)) {
-        scaling = scaling_max;
+        scaling = 1;
     } else {
         scaling = constrain_float(hover_throttle / throttle, 1/scaling_max, scaling_max);
+    }
+    // reduce throws if in VTOL mode at large pitch angles (implies high airspeed)
+    if (in_vtol_mode() && labs(ahrs_view->pitch_sensor) > tailsitter.transition_angle*100) {
+        scaling = 0.5f * (float)(tailsitter.transition_angle)*100 / labs(ahrs_view->pitch_sensor);
     }
     const SRV_Channel::Aux_servo_function_t functions[2] = {
         SRV_Channel::Aux_servo_function_t::k_aileron,
