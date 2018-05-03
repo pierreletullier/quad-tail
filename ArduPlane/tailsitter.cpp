@@ -212,7 +212,7 @@ void QuadPlane::tailsitter_speed_scaling(void)
 {
     const float hover_throttle = motors->get_throttle_hover();
     const float throttle = motors->get_throttle();
-    const float scaling_max = 5;
+    const float scaling_max = 1;
     float scaling = 1;
     if (is_zero(throttle)) {
         scaling = 1;
