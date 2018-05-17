@@ -127,13 +127,6 @@ void Plane::read_battery(void)
         battery.exhausted(g.fs_batt_voltage, g.fs_batt_mah)) {
         low_battery_event();
     }
-    if (battery.get_type() != AP_BattMonitor::BattMonitor_TYPE_NONE) {
-        AP_Notify::flags.battery_voltage = battery.voltage();
-    }
-    
-    if (should_log(MASK_LOG_CURRENT)) {
-        Log_Write_Current();
-    }
 }
 
 // read the receiver RSSI as an 8 bit number for MAVLink
@@ -321,7 +314,7 @@ void Plane::update_sensor_status_flags(void)
     if (!ins.get_accel_health_all()) {
         control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_3D_ACCEL;
     }
-    if (airspeed.healthy()) {
+    if (airspeed.all_healthy()) {
         control_sensors_health |= MAV_SYS_STATUS_SENSOR_DIFFERENTIAL_PRESSURE;
     }
 #if GEOFENCE_ENABLED

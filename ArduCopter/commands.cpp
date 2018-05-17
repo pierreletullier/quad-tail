@@ -31,7 +31,13 @@ void Copter::set_home_to_current_location_inflight() {
     if (inertial_nav.get_location(temp_loc)) {
         const struct Location &ekf_origin = inertial_nav.get_origin();
         temp_loc.alt = ekf_origin.alt;
-        set_home(temp_loc, false);
+        if (!set_home(temp_loc, false)) {
+            return;
+        }
+        // we have successfully set AHRS home, set it for SmartRTL
+#if MODE_SMARTRTL_ENABLED == ENABLED
+        g2.smart_rtl.set_home(true);
+#endif
     }
 }
 
@@ -40,7 +46,14 @@ bool Copter::set_home_to_current_location(bool lock) {
     // get current location from EKF
     Location temp_loc;
     if (inertial_nav.get_location(temp_loc)) {
-        return set_home(temp_loc, lock);
+        if (!set_home(temp_loc, lock)) {
+            return false;
+        }
+        // we have successfully set AHRS home, set it for SmartRTL
+#if MODE_SMARTRTL_ENABLED == ENABLED
+        g2.smart_rtl.set_home(true);
+#endif
+        return true;
     }
     return false;
 }
@@ -76,6 +89,7 @@ bool Copter::set_home(const Location& loc, bool lock)
         // record home is set
         set_home_state(HOME_SET_NOT_LOCKED);
 
+#if MODE_AUTO_ENABLED == ENABLED
         // log new home position which mission library will pull from ahrs
         if (should_log(MASK_LOG_CMD)) {
             AP_Mission::Mission_Command temp_cmd;
@@ -83,6 +97,7 @@ bool Copter::set_home(const Location& loc, bool lock)
                 DataFlash.Log_Write_Mission_Cmd(mission, temp_cmd);
             }
         }
+#endif
     }
 
     // lock home position

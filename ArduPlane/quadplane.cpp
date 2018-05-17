@@ -31,82 +31,7 @@ const AP_Param::GroupInfo QuadPlane::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("TRANSITION_MS", 11, QuadPlane, transition_time_ms, 5000),
 
-    // @Param: PZ_P
-    // @DisplayName: Position (vertical) controller P gain
-    // @Description: Position (vertical) controller P gain.  Converts the difference between the desired altitude and actual altitude into a climb or descent rate which is passed to the throttle rate controller
-    // @Range: 1.000 3.000
-    // @User: Standard
-    AP_SUBGROUPINFO(p_alt_hold, "PZ_", 12, QuadPlane, AC_P),
-
-    // @Param: PXY_P
-    // @DisplayName: Position (horizonal) controller P gain
-    // @Description: Loiter position controller P gain.  Converts the distance (in the latitude direction) to the target location into a desired speed which is then passed to the loiter latitude rate controller
-    // @Range: 0.500 2.000
-    // @User: Standard
-    AP_SUBGROUPINFO(p_pos_xy,   "PXY_", 13, QuadPlane, AC_P),
-
-    // @Param: VXY_P
-    // @DisplayName: Velocity (horizontal) P gain
-    // @Description: Velocity (horizontal) P gain.  Converts the difference between desired velocity to a target acceleration
-    // @Range: 0.1 6.0
-    // @Increment: 0.1
-    // @User: Advanced
-
-    // @Param: VXY_I
-    // @DisplayName: Velocity (horizontal) I gain
-    // @Description: Velocity (horizontal) I gain.  Corrects long-term difference in desired velocity to a target acceleration
-    // @Range: 0.02 1.00
-    // @Increment: 0.01
-    // @User: Advanced
-
-    // @Param: VXY_IMAX
-    // @DisplayName: Velocity (horizontal) integrator maximum
-    // @Description: Velocity (horizontal) integrator maximum.  Constrains the target acceleration that the I gain will output
-    // @Range: 0 4500
-    // @Increment: 10
-    // @Units: cm/s/s
-    // @User: Advanced
-    AP_SUBGROUPINFO(pi_vel_xy, "VXY_",  14, QuadPlane, AC_PI_2D),
-
-    // @Param: VZ_P
-    // @DisplayName: Velocity (vertical) P gain
-    // @Description: Velocity (vertical) P gain.  Converts the difference between desired vertical speed and actual speed into a desired acceleration that is passed to the throttle acceleration controller
-    // @Range: 1.000 8.000
-    // @User: Standard
-    AP_SUBGROUPINFO(p_vel_z,   "VZ_", 15, QuadPlane, AC_P),
-
-    // @Param: AZ_P
-    // @DisplayName: Throttle acceleration controller P gain
-    // @Description: Throttle acceleration controller P gain.  Converts the difference between desired vertical acceleration and actual acceleration into a motor output
-    // @Range: 0.500 1.500
-    // @User: Standard
-
-    // @Param: AZ_I
-    // @DisplayName: Throttle acceleration controller I gain
-    // @Description: Throttle acceleration controller I gain.  Corrects long-term difference in desired vertical acceleration and actual acceleration
-    // @Range: 0.000 3.000
-    // @User: Standard
-
-    // @Param: AZ_IMAX
-    // @DisplayName: Throttle acceleration controller I gain maximum
-    // @Description: Throttle acceleration controller I gain maximum.  Constrains the maximum pwm that the I term will generate
-    // @Range: 0 1000
-    // @Units: d%
-    // @User: Standard
-
-    // @Param: AZ_D
-    // @DisplayName: Throttle acceleration controller D gain
-    // @Description: Throttle acceleration controller D gain.  Compensates for short-term change in desired vertical acceleration vs actual acceleration
-    // @Range: 0.000 0.400
-    // @User: Standard
-
-    // @Param: AZ_FILT_HZ
-    // @DisplayName: Throttle acceleration filter
-    // @Description: Filter applied to acceleration to reduce noise.  Lower values reduce noise but add delay.
-    // @Range: 1.000 100.000
-    // @Units: Hz
-    // @User: Standard
-    AP_SUBGROUPINFO(pid_accel_z, "AZ_", 16, QuadPlane, AC_PID),
+    // 12 ~ 16 were used by position, velocity and acceleration PIDs
 
     // @Group: P_
     // @Path: ../libraries/AC_AttitudeControl/AC_PosControl.cpp
@@ -459,6 +384,26 @@ static const struct defaults_struct defaults_table_tailsitter[] = {
     { "Q_TRANSITION_MS",   2000 },
 };
 
+/*
+  conversion table for quadplane parameters
+ */
+const AP_Param::ConversionInfo q_conversion_table[] = {
+    { Parameters::k_param_quadplane, 4044, AP_PARAM_FLOAT, "Q_P_POSZ_P" },     //  Q_PZ_P
+    { Parameters::k_param_quadplane, 4045, AP_PARAM_FLOAT, "Q_P_POSXY_P"},     //  Q_PXY_P
+    { Parameters::k_param_quadplane, 4046, AP_PARAM_FLOAT, "Q_P_VELXY_P"},     //  Q_VXY_P
+    { Parameters::k_param_quadplane, 78,   AP_PARAM_FLOAT, "Q_P_VELXY_I"},     //  Q_VXY_I
+    { Parameters::k_param_quadplane, 142,  AP_PARAM_FLOAT, "Q_P_VELXY_IMAX"},  //  Q_VXY_IMAX
+    { Parameters::k_param_quadplane, 206,  AP_PARAM_FLOAT, "Q_P_VELXY_FILT"},  //  Q_VXY_FILT_HZ
+    { Parameters::k_param_quadplane, 4047, AP_PARAM_FLOAT, "Q_P_VELZ_P"},      //  Q_VZ_P
+    { Parameters::k_param_quadplane, 4048, AP_PARAM_FLOAT, "Q_P_ACCZ_P"},      //  Q_AZ_P
+    { Parameters::k_param_quadplane, 80,   AP_PARAM_FLOAT, "Q_P_ACCZ_I"},      //  Q_AZ_I
+    { Parameters::k_param_quadplane, 144,  AP_PARAM_FLOAT, "Q_P_ACCZ_D"},      //  Q_AZ_D
+    { Parameters::k_param_quadplane, 336,  AP_PARAM_FLOAT, "Q_P_ACCZ_IMAX"},   //  Q_AZ_IMAX
+    { Parameters::k_param_quadplane, 400,  AP_PARAM_FLOAT, "Q_P_ACCZ_FILT"},   //  Q_AZ_FILT
+    { Parameters::k_param_quadplane, 464,  AP_PARAM_FLOAT, "Q_P_ACCZ_FF"},     //  Q_AZ_FF
+};
+
+
 QuadPlane::QuadPlane(AP_AHRS_NavEKF &_ahrs) :
     ahrs(_ahrs)
 {
@@ -594,9 +539,7 @@ bool QuadPlane::setup(void)
         goto failed;
     }
     AP_Param::load_object_from_eeprom(attitude_control, attitude_control->var_info);
-    pos_control = new AC_PosControl(*ahrs_view, inertial_nav, *motors, *attitude_control,
-                                    p_alt_hold, p_vel_z, pid_accel_z,
-                                    p_pos_xy, pi_vel_xy);
+    pos_control = new AC_PosControl(*ahrs_view, inertial_nav, *motors, *attitude_control);
     if (!pos_control) {
         hal.console->printf("%s pos_control\n", strUnableToAllocate);
         goto failed;
@@ -613,7 +556,6 @@ bool QuadPlane::setup(void)
     motors->set_throttle_range(thr_min_pwm, thr_max_pwm);
     motors->set_update_rate(rc_speed);
     motors->set_interlock(true);
-    pid_accel_z.set_dt(loop_delta_t);
     pos_control->set_dt(loop_delta_t);
     attitude_control->parameter_sanity_check();
 
@@ -639,6 +581,8 @@ bool QuadPlane::setup(void)
 
     
     setup_defaults();
+
+    AP_Param::convert_old_parameters(&q_conversion_table[0], ARRAY_SIZE(q_conversion_table));
     
     gcs().send_text(MAV_SEVERITY_INFO, "QuadPlane initialised");
     initialised = true;
@@ -774,7 +718,7 @@ void QuadPlane::control_stabilize(void)
 // run the multicopter Z controller
 void QuadPlane::run_z_controller(void)
 {
-    uint32_t now = AP_HAL::millis();
+    const uint32_t now = AP_HAL::millis();
     if (now - last_pidz_active_ms > 2000) {
         // set alt target to current height on transition. This
         // starts the Z controller off with the right values
@@ -791,7 +735,7 @@ void QuadPlane::run_z_controller(void)
 
         // the base throttle we start at is the current throttle we are using
         float base_throttle = constrain_float(motors->get_throttle() - motors->get_throttle_hover(), -1, 1) * 1000;
-        pid_accel_z.set_integrator(base_throttle);
+        pos_control->get_accel_z_pid().set_integrator(base_throttle);
 
         last_pidz_init_ms = now;
     }
@@ -1016,7 +960,7 @@ void QuadPlane::control_loiter()
     plane.nav_roll_cd = wp_nav->get_roll();
     plane.nav_pitch_cd = wp_nav->get_pitch();
 
-    uint32_t now = AP_HAL::millis();
+    const uint32_t now = AP_HAL::millis();
     if (now - last_pidz_init_ms < (uint32_t)transition_time_ms*2 && !is_tailsitter()) {
         // we limit pitch during initial transition
         float pitch_limit_cd = linear_interpolate(loiter_initial_pitch_cd, aparm.angle_max,
@@ -1146,7 +1090,7 @@ float QuadPlane::assist_climb_rate_cms(void)
     climb_rate = constrain_float(climb_rate, -wp_nav->get_speed_down(), wp_nav->get_speed_up());
 
     // bring in the demanded climb rate over 2 seconds
-    uint16_t dt_since_start = last_pidz_active_ms - last_pidz_init_ms;
+    const uint32_t dt_since_start = last_pidz_active_ms - last_pidz_init_ms;
     if (dt_since_start < 2000) {
         climb_rate = linear_interpolate(0, climb_rate, dt_since_start, 0, 2000);
     }
@@ -1216,10 +1160,11 @@ bool QuadPlane::assistance_needed(float aspeed)
         in_angle_assist = false;
         return false;
     }
+    const uint32_t now = AP_HAL::millis();
     if (angle_error_start_ms == 0) {
-        angle_error_start_ms = AP_HAL::millis();
+        angle_error_start_ms = now;
     }
-    bool ret = (AP_HAL::millis() - angle_error_start_ms) >= 1000U;
+    bool ret = (now - angle_error_start_ms) >= 1000U;
     if (ret && !in_angle_assist) {
         in_angle_assist = true;
         gcs().send_text(MAV_SEVERITY_INFO, "Angle assist r=%d p=%d",
@@ -1279,6 +1224,9 @@ void QuadPlane::update_transition(void)
     if (is_tailsitter()) {
         if (transition_state == TRANSITION_ANGLE_WAIT_FW &&
             tailsitter_transition_fw_complete()) {
+            // stop the top and bottom motors when in fixed-wing mode
+            SRV_Channels::set_output_scaled(SRV_Channel::k_throttleTop, 0);
+            SRV_Channels::set_output_scaled(SRV_Channel::k_throttleBot, 0);
             gcs().send_text(MAV_SEVERITY_INFO, "Transition FW done");
             transition_state = TRANSITION_DONE;
         }
@@ -1382,6 +1330,8 @@ void QuadPlane::update_transition(void)
                                                                       0,
                                                                       smoothing_gain);
         attitude_control->set_throttle_out(motors->get_throttle_hover(), true, 0);
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttleTop, motors->get_throttle_hover());
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttleBot, motors->get_throttle_hover());
         run_rate_controller();
         motors_output();
         break;
@@ -1442,7 +1392,7 @@ void QuadPlane::update(void)
     if (!in_vtol_mode()) {
         update_transition();
     } else {
-        uint32_t now = AP_HAL::millis();
+        const uint32_t now = AP_HAL::millis();
 
         assisted_flight = false;
         
@@ -1563,6 +1513,36 @@ void QuadPlane::check_throttle_suppression(void)
     last_motors_active_ms = 0;
 }
 
+// update estimated throttle required to hover (if necessary)
+//  called at 100hz
+void QuadPlane::update_throttle_hover()
+{
+    // only learn hover throttle for tailsitters
+    if (!is_tailsitter()) {
+        return;
+    }
+
+    // if not armed or landed exit
+    if (!motors->armed() || !is_flying_vtol()) {
+        return;
+    }
+
+    // do not update while climbing or descending
+    if (!is_zero(pos_control->get_desired_velocity().z)) {
+        return;
+    }
+
+    // get throttle output
+    float throttle = motors->get_throttle();
+
+    // calc average throttle if we are in a level hover
+    if (throttle > 0.0f && fabsf(inertial_nav.get_velocity_z()) < 60 &&
+            labs(ahrs_view->roll_sensor) < 500 && labs(ahrs_view->pitch_sensor) < 500) {
+        // Can we set the time constant automatically
+        motors->update_throttle_hover(0.01f);
+    }
+}
+
 /*
   output motors and do any copter needed
  */
@@ -1584,17 +1564,18 @@ void QuadPlane::motors_output(void)
           transition. That is taken care of by the fixed wing
           stabilisation code
          */
-        return;
+//        return;
     }
 
     // see if motors should be shut down
     check_throttle_suppression();
     
+    // this eventually calls the AP_MotorsMulticopter child class output_to_motors()
     motors->output();
     if (motors->armed()) {
         plane.DataFlash.Log_Write_Rate(plane.ahrs, *motors, *attitude_control, *pos_control);
         Log_Write_QControl_Tuning();
-        uint32_t now = AP_HAL::millis();
+        const uint32_t now = AP_HAL::millis();
         if (now - last_ctrl_log_ms > 100) {
             attitude_control->control_monitor_log();
         }
@@ -1992,13 +1973,14 @@ void QuadPlane::setup_target_position(void)
     poscontrol.target.y = diff2d.y * 100;
     poscontrol.target.z = plane.next_WP_loc.alt - origin.alt;
 
+    const uint32_t now = AP_HAL::millis();
     if (!locations_are_same(loc, last_auto_target) ||
         plane.next_WP_loc.alt != last_auto_target.alt ||
-        millis() - last_loiter_ms > 500) {
+        now - last_loiter_ms > 500) {
         wp_nav->set_wp_destination(poscontrol.target);
         last_auto_target = loc;
     }
-    last_loiter_ms = millis();
+    last_loiter_ms = now;
     
     // setup vertical speed and acceleration
     pos_control->set_speed_z(-pilot_velocity_z_max, pilot_velocity_z_max);
@@ -2167,8 +2149,8 @@ bool QuadPlane::do_vtol_land(const AP_Mission::Mission_Command& cmd)
     attitude_control->get_rate_roll_pid().reset_I();
     attitude_control->get_rate_pitch_pid().reset_I();
     attitude_control->get_rate_yaw_pid().reset_I();
-    pid_accel_z.reset_I();
-    pi_vel_xy.reset_I();
+    pos_control->get_accel_z_pid().reset_I();
+    pos_control->get_vel_xy_pid().reset_I();
     
     plane.set_next_WP(cmd.content.location);
     // initially aim for current altitude
@@ -2179,13 +2161,6 @@ bool QuadPlane::do_vtol_land(const AP_Mission::Mission_Command& cmd)
 
     throttle_wait = false;
     landing_detect.lower_limit_start_ms = 0;
-    Location origin = inertial_nav.get_origin();
-    Vector2f diff2d;
-    Vector3f target;
-    diff2d = location_diff(origin, plane.next_WP_loc);
-    target.x = diff2d.x * 100;
-    target.y = diff2d.y * 100;
-    target.z = plane.next_WP_loc.alt - origin.alt;
     set_alt_target_current();
     
     // also update nav_controller for status output
@@ -2222,7 +2197,7 @@ void QuadPlane::check_land_complete(void)
         // only apply to final landing phase
         return;
     }
-    uint32_t now = AP_HAL::millis();
+    const uint32_t now = AP_HAL::millis();
     bool might_be_landed =  (landing_detect.lower_limit_start_ms != 0 &&
                              now - landing_detect.lower_limit_start_ms > 1000);
     if (!might_be_landed) {

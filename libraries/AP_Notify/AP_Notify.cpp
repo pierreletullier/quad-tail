@@ -24,6 +24,7 @@
 #include "OreoLED_PX4.h"
 #include "RCOutputRGBLed.h"
 #include "ToneAlarm_Linux.h"
+#include "ToneAlarm_ChibiOS.h"
 #include "ToneAlarm_PX4.h"
 #include "ToshibaLED.h"
 #include "ToshibaLED_I2C.h"
@@ -31,7 +32,10 @@
 #include "DiscreteRGBLed.h"
 #include "DiscoLED.h"
 #include "Led_Sysfs.h"
+#include "UAVCAN_RGB_LED.h"
 #include <stdio.h>
+
+extern const AP_HAL::HAL& hal;
 
 AP_Notify *AP_Notify::_instance;
 
@@ -136,6 +140,14 @@ void AP_Notify::add_backends(void)
     ADD_BACKEND(new Display());
   #endif
 
+// Notify devices for ChibiOS boards
+#elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+    ADD_BACKEND(new ToneAlarm_ChibiOS());
+    ADD_BACKEND(new PixRacerLED());
+    ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
+    ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_INTERNAL));
+    ADD_BACKEND(new Display());
+
 // Notify devices for VRBRAIN boards
 #elif CONFIG_HAL_BOARD == HAL_BOARD_VRBRAIN  
   #if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_VRBRAIN_V45 // Uses px4 LED board
@@ -169,6 +181,7 @@ void AP_Notify::add_backends(void)
     ADD_BACKEND(new RCOutputRGBLedInverted(12, 13, 14));
     ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
     ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_INTERNAL));
+    ADD_BACKEND(new UAVCAN_RGB_LED(0));
 
   #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BBBMINI
     ADD_BACKEND(new AP_BoardLED());
@@ -177,6 +190,11 @@ void AP_Notify::add_backends(void)
 
   #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BLUE
     ADD_BACKEND(new AP_BoardLED());
+    ADD_BACKEND(new Display());
+
+  #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_POCKET
+    ADD_BACKEND(new AP_BoardLED());
+    ADD_BACKEND(new Buzzer());
     ADD_BACKEND(new Display());
 
   #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_MINLURE
@@ -194,6 +212,9 @@ void AP_Notify::add_backends(void)
     ADD_BACKEND(new DiscoLED());
     ADD_BACKEND(new ToneAlarm_Linux());
 
+  #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_RST_ZYNQ
+    ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
+
   #else // other linux
     ADD_BACKEND(new AP_BoardLED());
     ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
@@ -201,10 +222,25 @@ void AP_Notify::add_backends(void)
     ADD_BACKEND(new ToneAlarm_Linux());
   #endif
 
+#elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+# ifdef HAL_HAVE_PIXRACER_LED
+    ADD_BACKEND(new PixRacerLED());
+# else
+    ADD_BACKEND(new AP_BoardLED());
+# endif
+    ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
+    ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_INTERNAL));
+    ADD_BACKEND(new Display());
+#elif CONFIG_HAL_BOARD == HAL_BOARD_F4LIGHT
+    ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
+    ADD_BACKEND(new Display());
+    ADD_BACKEND(new Buzzer());
+//    ADD_BACKEND(new AP_BoardLED2()); // needs AP_BoardLED2 in master
 #else
     ADD_BACKEND(new AP_BoardLED());
     ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_EXTERNAL));
     ADD_BACKEND(new ToshibaLED_I2C(TOSHIBA_LED_I2C_BUS_INTERNAL));
+    ADD_BACKEND(new Display());
 #endif
 }
 

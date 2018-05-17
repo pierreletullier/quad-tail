@@ -29,6 +29,10 @@
 #include <unistd.h>
 
 #include <AP_HAL_PX4/CAN.h>
+#elif CONFIG_HAL_BOARD == HAL_BOARD_LINUX
+#include <AP_HAL_Linux/CAN.h>
+#elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+#include <AP_HAL_ChibiOS/CAN.h>
 #endif
 
 #include <AP_UAVCAN/AP_UAVCAN.h>
@@ -88,17 +92,10 @@ void AP_BoardConfig_CAN::init()
         _st_can_debug[i] = (int8_t) _var_info_can[i]._can_debug;
     }
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_PX4 || CONFIG_HAL_BOARD == HAL_BOARD_VRBRAIN
-    px4_setup_canbus();
-#endif
-
+    setup_canbus();
 }
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_PX4 || CONFIG_HAL_BOARD == HAL_BOARD_VRBRAIN
-/*
-  setup CANBUS drivers
- */
-void AP_BoardConfig_CAN::px4_setup_canbus(void)
+void AP_BoardConfig_CAN::setup_canbus(void)
 {
     // Create all drivers that we need
     bool initret = true;
@@ -107,7 +104,15 @@ void AP_BoardConfig_CAN::px4_setup_canbus(void)
 
         if (drv_num != 0 && drv_num <= MAX_NUMBER_OF_CAN_DRIVERS) {
             if (hal.can_mgr[drv_num - 1] == nullptr) {
-                const_cast <AP_HAL::HAL&> (hal).can_mgr[drv_num - 1] = new PX4::PX4CANManager;
+                
+                #if CONFIG_HAL_BOARD == HAL_BOARD_PX4 || CONFIG_HAL_BOARD == HAL_BOARD_VRBRAIN
+                    const_cast <AP_HAL::HAL&> (hal).can_mgr[drv_num - 1] = new PX4::PX4CANManager;
+                #elif CONFIG_HAL_BOARD == HAL_BOARD_LINUX
+                    const_cast <AP_HAL::HAL&> (hal).can_mgr[drv_num - 1] = new Linux::CANManager;
+                #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+                    const_cast <AP_HAL::HAL&> (hal).can_mgr[drv_num - 1] = new ChibiOS::CANManager;
+                #endif
+                
             }
 
             if (hal.can_mgr[drv_num - 1] != nullptr) {
@@ -141,6 +146,7 @@ void AP_BoardConfig_CAN::px4_setup_canbus(void)
                         } else {
                             printf("Failed to initialize uavcan interface %d\n\r", i + 1);
                         }
+
                     } else {
                         AP_HAL::panic("Failed to allocate uavcan %d\n\r", i + 1);
                     }
@@ -157,6 +163,5 @@ void AP_BoardConfig_CAN::px4_setup_canbus(void)
         }
     }
 }
-#endif
 #endif
 

@@ -35,8 +35,6 @@
 
 #define WPNAV_WP_FAST_OVERSHOOT_MAX     200.0f      // 2m overshoot is allowed during fast waypoints to allow for smooth transitions to next waypoint
 
-#define WPNAV_LOITER_UPDATE_TIME        0.020f      // 50hz update rate for loiter
-
 #define WPNAV_LOITER_ACTIVE_TIMEOUT_MS     200      // loiter controller is considered active if it has been called within the past 200ms (0.2 seconds)
 
 #define WPNAV_YAW_DIST_MIN                 200      // minimum track length which will lead to target yaw being updated to point at next waypoint.  Under this distance the yaw target will be frozen at the current heading
@@ -196,9 +194,6 @@ public:
 
     /// calculate_wp_leash_length - calculates track speed, acceleration and leash lengths for waypoint controller
     void calculate_wp_leash_length();
-
-    /// get_bearing_cd - return bearing in centi-degrees between two positions
-    float get_bearing_cd(const Vector3f &origin, const Vector3f &destination) const;
 
     ///
     /// spline methods

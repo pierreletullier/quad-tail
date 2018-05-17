@@ -14,7 +14,10 @@
 
 #include "DataFlash.h"
 #include "DataFlash_File.h"
+#include "DataFlash_File_sd.h"
 #include "DataFlash_MAVLink.h"
+#include "DataFlash_Revo.h"
+#include "DataFlash_File_sd.h"
 #include "DFMessageWriter.h"
 
 extern const AP_HAL::HAL& hal;
@@ -208,12 +211,68 @@ void DataFlash_Backend::Log_Fill_Format(const struct LogStructure *s, struct log
 }
 
 /*
+  Pack a LogStructure packet into a structure suitable to go to the logfile:
+ */
+void DataFlash_Backend::Log_Fill_Format_Units(const struct LogStructure *s, struct log_Format_Units &pkt)
+{
+    memset(&pkt, 0, sizeof(pkt));
+    pkt.head1 = HEAD_BYTE1;
+    pkt.head2 = HEAD_BYTE2;
+    pkt.msgid = LOG_FORMAT_UNITS_MSG;
+    pkt.time_us = AP_HAL::micros64();
+    pkt.format_type = s->msg_type;
+    strncpy(pkt.units, s->units, sizeof(pkt.units));
+    strncpy(pkt.multipliers, s->multipliers, sizeof(pkt.multipliers));
+}
+
+/*
   write a structure format to the log
  */
 bool DataFlash_Backend::Log_Write_Format(const struct LogStructure *s)
 {
     struct log_Format pkt;
     Log_Fill_Format(s, pkt);
+    return WriteCriticalBlock(&pkt, sizeof(pkt));
+}
+
+/*
+  write a unit definition
+ */
+bool DataFlash_Backend::Log_Write_Unit(const struct UnitStructure *s)
+{
+    struct log_Unit pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_UNIT_MSG),
+        time_us : AP_HAL::micros64(),
+        type    : s->ID,
+        unit    : { }
+    };
+    strncpy(pkt.unit, s->unit, sizeof(pkt.unit));
+
+    return WriteCriticalBlock(&pkt, sizeof(pkt));
+}
+
+/*
+  write a unit-multiplier definition
+ */
+bool DataFlash_Backend::Log_Write_Multiplier(const struct MultiplierStructure *s)
+{
+    struct log_Format_Multiplier pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_MULT_MSG),
+        time_us      : AP_HAL::micros64(),
+        type         : s->ID,
+        multiplier   : s->multiplier,
+    };
+
+    return WriteCriticalBlock(&pkt, sizeof(pkt));
+}
+
+/*
+  write the units for a format to the log
+ */
+bool DataFlash_Backend::Log_Write_Format_Units(const struct LogStructure *s)
+{
+    struct log_Format_Units pkt;
+    Log_Fill_Format_Units(s, pkt);
     return WriteCriticalBlock(&pkt, sizeof(pkt));
 }
 
@@ -366,8 +425,9 @@ void DataFlash_Class::Log_Write_RSSI(AP_RSSI &rssi)
     WriteBlock(&pkt, sizeof(pkt));
 }
 
-void DataFlash_Class::Log_Write_Baro_instance(AP_Baro &baro, uint64_t time_us, uint8_t baro_instance, enum LogMessages type)
+void DataFlash_Class::Log_Write_Baro_instance(uint64_t time_us, uint8_t baro_instance, enum LogMessages type)
 {
+    AP_Baro &baro = AP::baro();
     float climbrate = baro.get_climb_rate();
     float drift_offset = baro.get_baro_drift_offset();
     float ground_temp = baro.get_ground_temperature();
@@ -386,17 +446,18 @@ void DataFlash_Class::Log_Write_Baro_instance(AP_Baro &baro, uint64_t time_us, u
 }
 
 // Write a BARO packet
-void DataFlash_Class::Log_Write_Baro(AP_Baro &baro, uint64_t time_us)
+void DataFlash_Class::Log_Write_Baro(uint64_t time_us)
 {
     if (time_us == 0) {
         time_us = AP_HAL::micros64();
     }
-    Log_Write_Baro_instance(baro, time_us, 0, LOG_BARO_MSG);
+    const AP_Baro &baro = AP::baro();
+    Log_Write_Baro_instance(time_us, 0, LOG_BARO_MSG);
     if (baro.num_instances() > 1 && baro.healthy(1)) {
-        Log_Write_Baro_instance(baro, time_us, 1, LOG_BAR2_MSG);
+        Log_Write_Baro_instance(time_us, 1, LOG_BAR2_MSG);
     }
     if (baro.num_instances() > 2 && baro.healthy(2)) {
-        Log_Write_Baro_instance(baro, time_us, 2, LOG_BAR3_MSG);
+        Log_Write_Baro_instance(time_us, 2, LOG_BAR3_MSG);
     }
 }
 
@@ -1491,12 +1552,12 @@ void DataFlash_Class::Log_Write_AttitudeView(AP_AHRS_View &ahrs, const Vector3f 
     WriteBlock(&pkt, sizeof(pkt));
 }
 
-void DataFlash_Class::Log_Write_Current_instance(const AP_BattMonitor &battery,
-                                                 const uint64_t time_us,
+void DataFlash_Class::Log_Write_Current_instance(const uint64_t time_us,
                                                  const uint8_t battery_instance,
                                                  const enum LogMessages type,
                                                  const enum LogMessages celltype)
 {
+    AP_BattMonitor &battery = AP::battery();
     float temp;
     bool has_temp = battery.get_temperature(temp, battery_instance);
     struct log_Current pkt = {
@@ -1505,7 +1566,8 @@ void DataFlash_Class::Log_Write_Current_instance(const AP_BattMonitor &battery,
         voltage             : battery.voltage(battery_instance),
         voltage_resting     : battery.voltage_resting_estimate(battery_instance),
         current_amps        : battery.current_amps(battery_instance),
-        current_total       : battery.current_total_mah(battery_instance),
+        current_total       : battery.consumed_mah(battery_instance),
+        consumed_wh         : battery.consumed_wh(battery_instance),
         temperature         : (int16_t)(has_temp ? (temp * 100) : 0),
         resistance          : battery.get_resistance(battery_instance)
     };
@@ -1531,20 +1593,19 @@ void DataFlash_Class::Log_Write_Current_instance(const AP_BattMonitor &battery,
 }
 
 // Write an Current data packet
-void DataFlash_Class::Log_Write_Current(const AP_BattMonitor &battery)
+void DataFlash_Class::Log_Write_Current()
 {
     const uint64_t time_us = AP_HAL::micros64();
-    if (battery.num_instances() >= 1) {
-        Log_Write_Current_instance(battery,
-                                   time_us,
+    const uint8_t num_instances = AP::battery().num_instances();
+    if (num_instances >= 1) {
+        Log_Write_Current_instance(time_us,
                                    0,
                                    LOG_CURRENT_MSG,
                                    LOG_CURRENT_CELLS_MSG);
     }
 
-    if (battery.num_instances() >= 2) {
-        Log_Write_Current_instance(battery,
-                                   time_us,
+    if (num_instances >= 2) {
+        Log_Write_Current_instance(time_us,
                                    1,
                                    LOG_CURRENT2_MSG,
                                    LOG_CURRENT_CELLS2_MSG);
@@ -1648,21 +1709,29 @@ void DataFlash_Class::Log_Write_ESC(void)
 // Write a AIRSPEED packet
 void DataFlash_Class::Log_Write_Airspeed(AP_Airspeed &airspeed)
 {
-    float temperature;
-    if (!airspeed.get_temperature(temperature)) {
-        temperature = 0;
+    uint64_t now = AP_HAL::micros64();
+    for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
+        if (!airspeed.enabled(i)) {
+            continue;
+        }
+        float temperature;
+        if (!airspeed.get_temperature(i, temperature)) {
+            temperature = 0;
+        }
+        struct log_AIRSPEED pkt = {
+            LOG_PACKET_HEADER_INIT(i==0?LOG_ARSP_MSG:LOG_ASP2_MSG),
+            time_us       : now,
+            airspeed      : airspeed.get_raw_airspeed(i),
+            diffpressure  : airspeed.get_differential_pressure(i),
+            temperature   : (int16_t)(temperature * 100.0f),
+            rawpressure   : airspeed.get_corrected_pressure(i),
+            offset        : airspeed.get_offset(i),
+            use           : airspeed.use(i),
+            healthy       : airspeed.healthy(i),
+            primary       : airspeed.get_primary()
+        };
+        WriteBlock(&pkt, sizeof(pkt));
     }
-    struct log_AIRSPEED pkt = {
-        LOG_PACKET_HEADER_INIT(LOG_ARSP_MSG),
-        time_us       : AP_HAL::micros64(),
-        airspeed      : airspeed.get_raw_airspeed(),
-        diffpressure  : airspeed.get_differential_pressure(),
-        temperature   : (int16_t)(temperature * 100.0f),
-        rawpressure   : airspeed.get_corrected_pressure(),
-        offset        : airspeed.get_offset(),
-        use           : airspeed.use()
-    };
-    WriteBlock(&pkt, sizeof(pkt));
 }
 
 // Write a Yaw PID packet

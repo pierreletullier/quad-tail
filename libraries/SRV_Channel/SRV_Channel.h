@@ -18,6 +18,7 @@
 #include <AP_RCMapper/AP_RCMapper.h>
 #include <AP_Common/Bitmask.h>
 #include <AP_Volz_Protocol/AP_Volz_Protocol.h>
+#include <AP_SBusOut/AP_SBusOut.h>
 
 #define NUM_SERVO_CHANNELS 16
 
@@ -119,6 +120,8 @@ public:
         k_dspoilerLeft2         = 86,           ///< differential spoiler 2 (left wing)
         k_dspoilerRight2        = 87,           ///< differential spoiler 2 (right wing)
         k_winch                 = 88,
+        k_throttleTop           = 89,
+        k_throttleBot           = 90,
         k_nr_aux_servo_functions         ///< This must be the last enum value (only add new values _before_ this one)
     } Aux_servo_function_t;
 
@@ -437,8 +440,12 @@ private:
     static SRV_Channels *instance;
 
     // support for Volz protocol
-    AP_Volz_Protocol volz = AP_Volz_Protocol::create();
+    AP_Volz_Protocol volz;
     static AP_Volz_Protocol *volz_ptr;
+
+    // support for SBUS protocol
+    AP_SBusOut sbus;
+    static AP_SBusOut *sbus_ptr;
 
     SRV_Channel obj_channels[NUM_SERVO_CHANNELS];
 

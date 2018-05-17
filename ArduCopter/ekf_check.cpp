@@ -98,7 +98,7 @@ bool Copter::ekf_check_position_problem()
     }
 
     // We don't know where we are.  Is this a problem?
-    if (copter.mode_requires_GPS(copter.control_mode)) {
+    if (copter.flightmode->requires_GPS()) {
         // Oh, yes, we have a problem
         return true;
     }
@@ -175,7 +175,7 @@ void Copter::failsafe_ekf_event()
 
     // if flight mode is already LAND ensure it's not the GPS controlled LAND
     if (control_mode == LAND) {
-        land_do_not_use_GPS();
+        mode_land.do_not_use_GPS();
     }
 }
 
@@ -209,7 +209,7 @@ void Copter::check_ekf_reset()
     if ((EKF2.getPrimaryCoreIndex() != ekf_primary_core) && (EKF2.getPrimaryCoreIndex() != -1)) {
         ekf_primary_core = EKF2.getPrimaryCoreIndex();
         Log_Write_Error(ERROR_SUBSYSTEM_EKF_PRIMARY, ekf_primary_core);
-        gcs().send_text(MAV_SEVERITY_WARNING, "EKF primary changed:%d\n", (unsigned)ekf_primary_core);
+        gcs().send_text(MAV_SEVERITY_WARNING, "EKF primary changed:%d", (unsigned)ekf_primary_core);
     }
 #endif
 }

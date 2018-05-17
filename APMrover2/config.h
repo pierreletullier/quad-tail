@@ -60,6 +60,9 @@
   #define MAV_SYSTEM_ID    1
 #endif
 
+#ifndef ARM_DELAY_MS
+  #define ARM_DELAY_MS  2000
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 // FrSky telemetry support
@@ -128,10 +131,10 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
-// AIRSPEED_CRUISE
+// CRUISE_SPEED default
 //
-#ifndef SPEED_CRUISE
-  #define SPEED_CRUISE    5  // in m/s
+#ifndef CRUISE_SPEED
+  #define CRUISE_SPEED    2  // in m/s
 #endif
 
 #ifndef TURN_GAIN
@@ -162,4 +165,8 @@
 
 #ifndef ADVANCED_FAILSAFE
   #define ADVANCED_FAILSAFE DISABLED
+#endif
+
+#ifndef STATS_ENABLED
+ # define STATS_ENABLED ENABLED
 #endif

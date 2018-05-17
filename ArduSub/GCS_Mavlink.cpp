@@ -243,28 +243,19 @@ NOINLINE void Sub::send_extended_status1(mavlink_channel_t chan)
 
 void NOINLINE Sub::send_location(mavlink_channel_t chan)
 {
-    uint32_t fix_time;
-    // if we have a GPS fix, take the time as the last fix time. That
-    // allows us to correctly calculate velocities and extrapolate
-    // positions.
-    // If we don't have a GPS fix then we are dead reckoning, and will
-    // use the current boot time as the fix time.
-    if (gps.status() >= AP_GPS::GPS_OK_FIX_2D) {
-        fix_time = gps.last_fix_time_ms();
-    } else {
-        fix_time = millis();
-    }
-    const Vector3f &vel = inertial_nav.get_velocity();
+    const uint32_t now = AP_HAL::millis();
+    Vector3f vel;
+    ahrs.get_velocity_NED(vel);
     mavlink_msg_global_position_int_send(
         chan,
-        fix_time,
+        now,
         current_loc.lat,                // in 1E7 degrees
         current_loc.lng,                // in 1E7 degrees
         (ahrs.get_home().alt + current_loc.alt) * 10UL,      // millimeters above sea level
         current_loc.alt * 10,           // millimeters above ground
-        vel.x,                          // X speed cm/s (+ve North)
-        vel.y,                          // Y speed cm/s (+ve East)
-        vel.z,                          // Z speed cm/s (+ve up)
+        vel.x * 100,                    // X speed cm/s (+ve North)
+        vel.y * 100,                    // Y speed cm/s (+ve East)
+        vel.z * 100,                    // Z speed cm/s (+ve Down)
         ahrs.yaw_sensor);               // compass heading in 1/100 degree
 }
 
@@ -371,6 +362,13 @@ bool NOINLINE Sub::send_info(mavlink_channel_t chan)
     mavlink_msg_named_value_float_send(
             chan,
             AP_HAL::millis(),
+            "CamPan",
+            1 - (SRV_Channels::get_output_norm(SRV_Channel::k_mount_pan) / 2.0f + 0.5f));
+
+    CHECK_PAYLOAD_SIZE2(NAMED_VALUE_FLOAT);
+    mavlink_msg_named_value_float_send(
+            chan,
+            AP_HAL::millis(),
             "TetherTrn",
             quarter_turn_count/4);
 
@@ -451,7 +449,7 @@ void Sub::send_pid_tuning(mavlink_channel_t chan)
         }
     }
     if (g.gcs_pid_mask & 8) {
-        const DataFlash_Class::PID_Info &pid_info = g.pid_accel_z.get_pid_info();
+        const DataFlash_Class::PID_Info &pid_info = pos_control.get_accel_z_pid().get_pid_info();
         mavlink_msg_pid_tuning_send(chan, PID_TUNING_ACCZ,
                                     pid_info.desired*0.01f,
                                     -(ahrs.get_accel_ef_blended().z + GRAVITY_MSS),
@@ -519,11 +517,6 @@ bool GCS_MAVLINK_Sub::try_send_message(enum ap_message id)
         sub.send_location(chan);
         break;
 
-    case MSG_LOCAL_POSITION:
-        CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED);
-        send_local_position(sub.ahrs);
-        break;
-
     case MSG_NAV_CONTROLLER_OUTPUT:
         CHECK_PAYLOAD_SIZE(NAV_CONTROLLER_OUTPUT);
         sub.send_nav_controller_output(chan);
@@ -551,13 +544,13 @@ bool GCS_MAVLINK_Sub::try_send_message(enum ap_message id)
 
     case MSG_RAW_IMU2:
         CHECK_PAYLOAD_SIZE(SCALED_PRESSURE);
-        send_scaled_pressure(sub.barometer);
+        send_scaled_pressure();
         sub.send_temperature(chan);
         break;
 
     case MSG_RAW_IMU3:
         CHECK_PAYLOAD_SIZE(SENSOR_OFFSETS);
-        send_sensor_offsets(sub.ins, sub.compass, sub.barometer);
+        send_sensor_offsets(sub.ins, sub.compass);
         break;
 
     case MSG_RANGEFINDER:
@@ -590,18 +583,13 @@ bool GCS_MAVLINK_Sub::try_send_message(enum ap_message id)
 #endif
         break;
 
-    case MSG_AHRS:
-        CHECK_PAYLOAD_SIZE(AHRS);
-        send_ahrs(sub.ahrs);
-        break;
-
     case MSG_SIMSTATE:
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
         CHECK_PAYLOAD_SIZE(SIMSTATE);
         sub.send_simstate(chan);
 #endif
         CHECK_PAYLOAD_SIZE(AHRS2);
-        send_ahrs2(sub.ahrs);
+        send_ahrs2();
         break;
 
     case MSG_MOUNT_STATUS:
@@ -619,7 +607,7 @@ bool GCS_MAVLINK_Sub::try_send_message(enum ap_message id)
     case MSG_OPTICAL_FLOW:
 #if OPTFLOW == ENABLED
         CHECK_PAYLOAD_SIZE(OPTICAL_FLOW);
-        send_opticalflow(sub.ahrs, sub.optflow);
+        send_opticalflow(sub.optflow);
 #endif
         break;
 
@@ -871,7 +859,7 @@ void GCS_MAVLINK_Sub::handle_change_alt_request(AP_Mission::Mission_Command &cmd
 
 void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
 {
-    uint8_t result = MAV_RESULT_FAILED;         // assume failure.  Each messages id is responsible for return ACK or NAK if required
+    MAV_RESULT result = MAV_RESULT_FAILED;         // assume failure.  Each messages id is responsible for return ACK or NAK if required
 
     switch (msg->msgid) {
 
@@ -881,7 +869,6 @@ void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
             break;
         }
         sub.failsafe.last_heartbeat_ms = AP_HAL::millis();
-        sub.pmTest1++;
         break;
     }
 
@@ -1030,14 +1017,6 @@ void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
         mavlink_msg_command_long_decode(msg, &packet);
 
         switch (packet.command) {
-        case MAV_CMD_PREFLIGHT_STORAGE:
-            if (is_equal(packet.param1, 2.0f)) {
-                AP_Param::erase_all();
-                gcs().send_text(MAV_SEVERITY_WARNING, "All parameters reset, reboot board");
-                result= MAV_RESULT_ACCEPTED;
-            }
-            break;
-
         case MAV_CMD_NAV_LOITER_UNLIM:
             if (sub.set_mode(POSHOLD, MODE_REASON_GCS_COMMAND)) {
                 result = MAV_RESULT_ACCEPTED;
@@ -1241,7 +1220,7 @@ void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
                 mavlink_msg_command_ack_send_buf(msg, chan, packet.command, result);
 
                 AP_Notify::flags.firmware_update = 1;
-                sub.update_notify();
+                sub.notify.update();
                 hal.scheduler->delay(200);
                 // when packet.param1 == 3 we reboot to hold in bootloader
                 hal.scheduler->reboot(is_equal(packet.param1,3.0f));
@@ -1398,11 +1377,18 @@ void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
 
         // send request
         if (!pos_ignore && !vel_ignore && acc_ignore) {
-            sub.guided_set_destination_posvel(pos_vector, vel_vector);
+            if (sub.guided_set_destination_posvel(pos_vector, vel_vector)) {
+                result = MAV_RESULT_ACCEPTED;
+            } else {
+                result = MAV_RESULT_FAILED;
+            }
         } else if (pos_ignore && !vel_ignore && acc_ignore) {
             sub.guided_set_velocity(vel_vector);
+            result = MAV_RESULT_ACCEPTED;
         } else if (!pos_ignore && vel_ignore && acc_ignore) {
-            if (!sub.guided_set_destination(pos_vector)) {
+            if (sub.guided_set_destination(pos_vector)) {
+                result = MAV_RESULT_ACCEPTED;
+            } else {
                 result = MAV_RESULT_FAILED;
             }
         } else {
@@ -1443,7 +1429,7 @@ void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
          * bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
          */
 
-        Vector3f pos_ned;
+        Vector3f pos_neu_cm;  // position (North, East, Up coordinates) in centimeters
 
         if (!pos_ignore) {
             // sanity check location
@@ -1473,15 +1459,22 @@ void GCS_MAVLINK_Sub::handleMessage(mavlink_message_t* msg)
                 loc.flags.terrain_alt = false;
                 break;
             }
-            pos_ned = sub.pv_location_to_vector(loc);
+            pos_neu_cm = sub.pv_location_to_vector(loc);
         }
 
         if (!pos_ignore && !vel_ignore && acc_ignore) {
-            sub.guided_set_destination_posvel(pos_ned, Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f));
+            if (sub.guided_set_destination_posvel(pos_neu_cm, Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f))) {
+                result = MAV_RESULT_ACCEPTED;
+            } else {
+                result = MAV_RESULT_FAILED;
+            }
         } else if (pos_ignore && !vel_ignore && acc_ignore) {
             sub.guided_set_velocity(Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f));
+            result = MAV_RESULT_ACCEPTED;
         } else if (!pos_ignore && vel_ignore && acc_ignore) {
-            if (!sub.guided_set_destination(pos_ned)) {
+            if (sub.guided_set_destination(pos_neu_cm)) {
+                result = MAV_RESULT_ACCEPTED;
+            } else {
                 result = MAV_RESULT_FAILED;
             }
         } else {

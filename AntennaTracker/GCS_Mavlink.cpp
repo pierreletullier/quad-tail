@@ -78,6 +78,30 @@ void Tracker::send_attitude(mavlink_channel_t chan)
 }
 
 
+void Tracker::send_extended_status1(mavlink_channel_t chan)
+{
+    int16_t battery_current = -1;
+    int8_t battery_remaining = -1;
+
+    if (battery.has_current() && battery.healthy()) {
+        battery_remaining = battery.capacity_remaining_pct();
+        battery_current = battery.current_amps() * 100;
+    }
+
+    mavlink_msg_sys_status_send(
+        chan,
+        0,
+        0,
+        0,
+        static_cast<uint16_t>(scheduler.load_average() * 1000),
+        battery.voltage() * 1000,  // mV
+        battery_current,        // in 10mA units
+        battery_remaining,      // in %
+        0,  // comm drops %,
+        0,  // comm drops in pkts,
+        0, 0, 0, 0);
+}
+
 void Tracker::send_location(mavlink_channel_t chan)
 {
     uint32_t fix_time;
@@ -96,7 +120,7 @@ void Tracker::send_location(mavlink_channel_t chan)
         0,
         vel.x * 100,  // X speed cm/s (+ve North)
         vel.y * 100,  // Y speed cm/s (+ve East)
-        vel.z * -100, // Z speed cm/s (+ve up)
+        vel.z * 100,  // Z speed cm/s (+ve Down)
         ahrs.yaw_sensor);
 }
 
@@ -156,11 +180,6 @@ bool GCS_MAVLINK_Tracker::try_send_message(enum ap_message id)
         tracker.send_location(chan);
         break;
 
-    case MSG_LOCAL_POSITION:
-        CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED);
-        send_local_position(tracker.ahrs);
-        break;
-
     case MSG_NAV_CONTROLLER_OUTPUT:
         CHECK_PAYLOAD_SIZE(NAV_CONTROLLER_OUTPUT);
         tracker.send_nav_controller_output(chan);
@@ -183,22 +202,22 @@ bool GCS_MAVLINK_Tracker::try_send_message(enum ap_message id)
 
     case MSG_RAW_IMU2:
         CHECK_PAYLOAD_SIZE(SCALED_PRESSURE);
-        send_scaled_pressure(tracker.barometer);
+        send_scaled_pressure();
         break;
 
     case MSG_RAW_IMU3:
         CHECK_PAYLOAD_SIZE(SENSOR_OFFSETS);
-        send_sensor_offsets(tracker.ins, tracker.compass, tracker.barometer);
-        break;
-
-    case MSG_AHRS:
-        CHECK_PAYLOAD_SIZE(AHRS);
-        send_ahrs(tracker.ahrs);
+        send_sensor_offsets(tracker.ins, tracker.compass);
         break;
 
     case MSG_SIMSTATE:
         CHECK_PAYLOAD_SIZE(SIMSTATE);
         tracker.send_simstate(chan);
+        break;
+
+    case MSG_EXTENDED_STATUS1:
+        CHECK_PAYLOAD_SIZE(SYS_STATUS);
+        tracker.send_extended_status1(chan);
         break;
 
     default:
@@ -331,7 +350,7 @@ GCS_MAVLINK_Tracker::data_stream_send(void)
     }
 
     if (stream_trigger(STREAM_RAW_CONTROLLER)) {
-        send_message(MSG_SERVO_OUT);
+        send_message(MSG_SERVO_OUTPUT_RAW);
     }
 
     if (stream_trigger(STREAM_RC_CHANNELS)) {
@@ -451,7 +470,7 @@ void GCS_MAVLINK_Tracker::handleMessage(mavlink_message_t* msg)
         mavlink_command_long_t packet;
         mavlink_msg_command_long_decode(msg, &packet);
         
-        uint8_t result = MAV_RESULT_UNSUPPORTED;
+        MAV_RESULT result = MAV_RESULT_UNSUPPORTED;
         
         // do command
         send_text(MAV_SEVERITY_INFO,"Command received: ");
@@ -540,7 +559,7 @@ void GCS_MAVLINK_Tracker::handleMessage(mavlink_message_t* msg)
 
                 // mavproxy/mavutil sends this when auto command is entered 
             case MAV_CMD_MISSION_START:
-                tracker.set_mode(AUTO);
+                tracker.set_mode(AUTO, MODE_REASON_GCS_COMMAND);
                 result = MAV_RESULT_ACCEPTED;
                 break;
 
@@ -596,7 +615,7 @@ void GCS_MAVLINK_Tracker::handleMessage(mavlink_message_t* msg)
     {
         // decode
         mavlink_mission_item_t packet;
-        uint8_t result = MAV_MISSION_ACCEPTED;
+        MAV_MISSION_RESULT result = MAV_MISSION_ACCEPTED;
 
         mavlink_msg_mission_item_decode(msg, &packet);
 
@@ -787,7 +806,7 @@ bool GCS_MAVLINK_Tracker::set_mode(uint8_t mode)
     case SCAN:
     case SERVO_TEST:
     case STOP:
-        tracker.set_mode((enum ControlMode)mode);
+        tracker.set_mode((enum ControlMode)mode, MODE_REASON_GCS_COMMAND);
         return true;
     }
     return false;

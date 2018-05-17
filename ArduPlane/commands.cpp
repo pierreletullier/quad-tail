@@ -9,16 +9,16 @@
  */
 void Plane::set_next_WP(const struct Location &loc)
 {
-    if (auto_state.next_wp_no_crosstrack) {
+    if (auto_state.next_wp_crosstrack) {
+        // copy the current WP into the OldWP slot
+        prev_WP_loc = next_WP_loc;
+        auto_state.crosstrack = true;
+    } else {
         // we should not try to cross-track for this waypoint
         prev_WP_loc = current_loc;
         // use cross-track for the next waypoint
-        auto_state.next_wp_no_crosstrack = false;
-        auto_state.no_crosstrack = true;
-    } else {
-        // copy the current WP into the OldWP slot
-        prev_WP_loc = next_WP_loc;
-        auto_state.no_crosstrack = false;
+        auto_state.next_wp_crosstrack = true;
+        auto_state.crosstrack = false;
     }
 
     // Load the next_WP slot
@@ -90,6 +90,9 @@ void Plane::set_guided_WP(void)
 
     setup_glide_slope();
     setup_turn_angle();
+
+    // disable crosstrack, head directly to the point
+    auto_state.crosstrack = false;
 
     // reset loiter start time.
     loiter.start_time_ms = 0;
